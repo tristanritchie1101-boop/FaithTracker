@@ -46,14 +46,16 @@ jobs:
           APP_BUILD="$PROJECT_DIR/app/build.gradle.kts"
           sed -i 's/id("com.android.application")/id("com.android.application") version "8.4.2"/' "$APP_BUILD"
           sed -i 's/id("org.jetbrains.kotlin.android")/id("org.jetbrains.kotlin.android") version "1.9.24"/' "$APP_BUILD"
-
-      - name: Build debug APK (no wrapper)
+- name: Build debug APK (AndroidX override)
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: 8.9
-          arguments: assembleDebug
+          arguments: >
+            assembleDebug
+            -Dandroid.useAndroidX=true
+            -Dandroid.enableJetifier=true
           build-root-directory: ${{ env.PROJECT_DIR }}
-
+          
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
