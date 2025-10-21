@@ -1,4 +1,4 @@
-name: Build Android APK (from zip, fixed repositories)
+name: Build Android APK (from zip, fixed)
 
 on:
   workflow_dispatch:
@@ -26,30 +26,29 @@ jobs:
         id: detect
         run: |
           PROJECT_DIR=$(dirname "$(find ./unzipped -maxdepth 2 -name settings.gradle.kts -print -quit)")
-          echo "PROJECT_DIR=$PROJECT_DIR"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Could not find settings.gradle.kts under ./unzipped"; exit 1
+          fi
           echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project dir: $PROJECT_DIR"
 
-      - name: Add plugin management fallback
+      # IMPORTANT: set explicit plugin versions in the module's plugins block
+      # (avoid adding another pluginManagement block to settings.gradle.kts)
+      - name: Inject Android & Kotlin plugin versions
         run: |
-          SETTINGS_FILE="${{ env.PROJECT_DIR }}/settings.gradle.kts"
-          echo "" >> "$SETTINGS_FILE"
-          echo "// Added by workflow to ensure plugin repositories" >> "$SETTINGS_FILE"
-          echo "pluginManagement {" >> "$SETTINGS_FILE"
-          echo "  repositories {" >> "$SETTINGS_FILE"
-          echo "    gradlePluginPortal()" >> "$SETTINGS_FILE"
-          echo "    google()" >> "$SETTINGS_FILE"
-          echo "    mavenCentral()" >> "$SETTINGS_FILE"
-          echo "  }" >> "$SETTINGS_FILE"
-          echo "}" >> "$SETTINGS_FILE"
+          APP_BUILD="$PROJECT_DIR/app/build.gradle.kts"
+          sed -i 's/id("com.android.application")/id("com.android.application") version "8.4.2"/' "$APP_BUILD"
+          sed -i 's/id("org.jetbrains.kotlin.android")/id("org.jetbrains.kotlin.android") version "1.9.24"/' "$APP_BUILD"
 
-      - name: Build debug APK
+      - name: Build debug APK (no wrapper)
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: 8.9
           arguments: assembleDebug
           build-root-directory: ${{ env.PROJECT_DIR }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: FaithTracker-debug
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
